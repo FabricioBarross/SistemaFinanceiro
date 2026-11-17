@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import com.sistemafinanceiro.model.TipoMovimentacao;
 import com.sistemafinanceiro.model.Movimentacao;
+import com.sistemafinanceiro.service.ServicoFinanceiro;
 
 public class Main {
     private static final Locale LOCALE_BR = new Locale("pt", "BR");
@@ -24,7 +25,7 @@ public class Main {
             nome = scanner.nextLine().trim();
         }
 
-        ArrayList<Movimentacao> movimentacoes = new ArrayList<>();
+        ServicoFinanceiro servico = new ServicoFinanceiro();
 
        int opcao = 0;
 
@@ -35,66 +36,34 @@ public class Main {
            opcao = lerOpcao(scanner);
 
            switch (opcao) {
-               case 1:
-                  BigDecimal rendaMensal = lerBigDecimal(scanner, "Digite sua renda mensal: ");
 
-                  movimentacoes.add(new Movimentacao(
-                          "Renda mensal",
-                          rendaMensal,
-                          TipoMovimentacao.RECEITA,
-                          "Trabalho"
-                  ));
-                  System.out.println("Renda mensal cadastrada com sucesso!");
-                   break;
-
-               case 2:
-                   BigDecimal rendaVariavel = lerBigDecimal(scanner, "Digite o valor da renda variável: ");
-
-                   movimentacoes.add(new Movimentacao(
-                           "Renda Variável",
-                           rendaVariavel,
-                           TipoMovimentacao.RECEITA,
-                           "Renda extra"
-                   ));
-
-                   System.out.println("Renda variável cadastrada com sucesso!");
-                   break;
-
-               case 3:
-                    BigDecimal despesasFixas = lerBigDecimal(scanner, "Digite o valor das despesas fixas: ");
-
-                    movimentacoes.add(new Movimentacao(
-                            "Despesas fixas",
-                            despesasFixas,
-                            TipoMovimentacao.DESPESA,
-                            "Despesas fixas"
-                    ));
-
-                   System.out.println("Despesas fixas cadastradas com sucesso!");
-                   break;
-
-               case 4:
-                   BigDecimal despesasVariaveis = lerBigDecimal(scanner, "Digite o valor das despesas variáveis: ");
-
-                   movimentacoes.add(new Movimentacao(
-                           "Despesas variáveis",
-                           despesasVariaveis,
-                           TipoMovimentacao.DESPESA,
-                           "Despesas variáveis"
-                   ));
-
-                   System.out.println("Despesas variáveis cadastradas com sucesso!");
-                   break;
-
-               case 5:
-                     consultarDadosFinanceiros(nome, movimentacoes);
-                   break;
-
-               case 6:
+               case 1 -> {
+                   BigDecimal valor = lerBigDecimal(scanner, "Digite sua renda mensal: ");
+                   servico.adicionar(new Movimentacao("Renda mensal", valor, TipoMovimentacao.RECEITA, "Trabalho"));
+                   System.out.println("Renda mensal cadastrada com sucesso!");
+               }
+               case 2 -> {
+                   BigDecimal valor = lerBigDecimal(scanner, "Digite sua renda variável: ");
+                   servico.adicionar(new Movimentacao("Renda extra", valor, TipoMovimentacao.RECEITA, "renda extra"));
+                   System.out.println("Renda extra cadastrada com sucesso!");
+               }
+               case 3 -> {
+                   BigDecimal valor = lerBigDecimal(scanner, "Digite suas despesa fixa: ");
+                   servico.adicionar(new Movimentacao("Despesas fixa", valor, TipoMovimentacao.DESPESA, "contas"));
+                   System.out.println("Despesas fixa cadastrada com sucesso!");
+               }
+               case 4 -> {
+                   BigDecimal valor = lerBigDecimal(scanner, "Digite suas despesas variáveis: ");
+                   servico.adicionar(new Movimentacao("Despesas variáveis", valor, TipoMovimentacao.DESPESA, "Imprevistos"));
+                   System.out.println("Despesas variáveis cadastrada com sucesso!");
+               }
+               case 5 -> {
+                   consultarDadosFinanceiros(nome, servico);
+               }
+               case 6 -> {
                    System.out.println("Saindo do sistema...");
-                   break;
-
-               default:
+               }
+               default ->
                    System.out.println("Opção inválida. Tente novamente.");
            }
        }
@@ -155,69 +124,38 @@ public class Main {
         System.out.println("5. Consultar dados financeiros");
         System.out.println("6. Sair");
     }
-    private static void consultarDadosFinanceiros(
-            String nome,
-           ArrayList<Movimentacao> movimentacoes
-
-    ) {
-        if (movimentacoes.isEmpty()){
+    private static void consultarDadosFinanceiros(String nome, ServicoFinanceiro servico) {
+        if (servico.estaVazio()) {
             System.out.println("Nenhuma movimentção cadastrada.");
             return;
         }
         NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
-        BigDecimal totalReceitas = BigDecimal.ZERO;
-        BigDecimal totalDespesas = BigDecimal.ZERO;
-
-        for(Movimentacao movimentacao : movimentacoes) {
-            if (movimentacao.getTipo() == TipoMovimentacao.RECEITA) {
-                totalReceitas = totalReceitas.add(movimentacao.getValor());
-            } else if (movimentacao.getTipo() == TipoMovimentacao.DESPESA) {
-                totalDespesas = totalDespesas.add(movimentacao.getValor());
-            }
-        }
-        BigDecimal saldoFinal = totalReceitas.subtract(totalDespesas);
+        BigDecimal saldo = servico.saldo();
 
         System.out.println("\n====== DADOS FINANCEIROS ======");
-
         System.out.println("Olá, " + nome + "!");
-
-        System.out.println("Sua renda total é: " + moeda.format(totalReceitas));
-
-        System.out.println("Suas despesas totais são: " + moeda.format(totalDespesas));
-
-        System.out.println("Seu saldo final é: " + moeda.format(saldoFinal));
-
+        System.out.println("Sua renda total é: " + moeda.format(servico.totalReceitas()));
+        System.out.println("Suas despesas totais são: " + moeda.format(servico.totalDespesas()));
+        System.out.println("Seu saldo final é: " + moeda.format(saldo));
         System.out.println();
 
         System.out.println("\n====== MOVIMENTAÇÕES ======");
-        for (Movimentacao movimentacao : movimentacoes) {
+        for (Movimentacao m : servico.listar()) {
             System.out.println("-------------------------");
-
-            System.out.println(
-                    "Descrição: " + movimentacao.getDescricao()
-            );
-
-            System.out.println(
-                    "Valor: " + moeda.format(movimentacao.getValor())
-            );
-
-            System.out.println(
-                    "Tipo: " + movimentacao.getTipo()
-            );
-
-            System.out.println(
-                    "Categoria: " + movimentacao.getCategoria()
-            );
+            System.out.println("Descrição: " + m.getDescricao());
+            System.out.println("Valor: " + moeda.format(m.getValor()));
+            System.out.println("Tipo: " + m.getTipo());
+            System.out.println("Categoria: " + m.getCategoria());
         }
-
         System.out.println();
+        int sinal = saldo.signum();
 
-        if (saldoFinal.compareTo(BigDecimal.ZERO) == 0) {
+        if (sinal == 0) {
             System.out.println("Cuidado! Você está gastando exatamente o que ganha.");
-        } else if (saldoFinal.compareTo(BigDecimal.ZERO) < 0) {
+        } else if (sinal < 0) {
             System.out.println("Atenção! Você está gastando mais do que ganha.");
         } else {
-            System.out.println("Parabéns! Suas despesas não ultrapassaram sua renda.");
+            System.out.println("Parabéns! Suas despesas não ultrapssaram sua renda.");
         }
     }
 }

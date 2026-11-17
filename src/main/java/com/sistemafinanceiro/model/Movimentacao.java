@@ -3,10 +3,10 @@ import  java.math.BigDecimal;
 
 public class Movimentacao {
 
-    private String descricao;
-    private BigDecimal valor;
-    private TipoMovimentacao tipo;
-    private String categoria;
+    private final String descricao;
+    private final BigDecimal valor;
+    private final TipoMovimentacao tipo;
+    private final String categoria;
 
     public Movimentacao(
             String descricao,
@@ -14,6 +14,16 @@ public class Movimentacao {
             TipoMovimentacao tipo,
             String categoria
     ) {
+
+        if (descricao == null || descricao.isBlank())
+            throw new IllegalArgumentException("Descrição obrigatória");
+        if (valor == null || valor.signum() < 0)
+            throw new IllegalArgumentException("Valor não pode ser nulo ou negativo");
+        if (tipo == null)
+            throw new IllegalArgumentException("Tipo obrigatório");
+        if (categoria == null || categoria.isBlank())
+            throw new IllegalArgumentException("Categoria obrigatória");
+
         this.descricao = descricao;
         this.valor = valor;
         this.tipo = tipo;
@@ -25,11 +35,11 @@ public class Movimentacao {
     public BigDecimal getValor() {
         return valor;
     }
+
     public TipoMovimentacao getTipo() {
         return tipo;
     }
     public String getCategoria() {
         return categoria;
     }
-
 }
