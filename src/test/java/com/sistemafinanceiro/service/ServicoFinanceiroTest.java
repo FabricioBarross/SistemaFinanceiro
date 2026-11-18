@@ -1,11 +1,13 @@
 package com.sistemafinanceiro.service;
 
+import com.sistemafinanceiro.model.Categoria;
 import com.sistemafinanceiro.model.Movimentacao;
 import com.sistemafinanceiro.model.TipoMovimentacao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,12 +22,12 @@ class ServicoFinanceiroTest {
 
     private Movimentacao receita(String valor) {
         return new Movimentacao("Receita", new BigDecimal(valor),
-                TipoMovimentacao.RECEITA, "Teste");
+                TipoMovimentacao.RECEITA, Categoria.SALARIO, LocalDate.of(2026, 1, 15));
     }
 
     private Movimentacao despesa(String valor) {
         return new Movimentacao("Despesa", new BigDecimal(valor),
-                TipoMovimentacao.DESPESA, "Teste");
+                TipoMovimentacao.DESPESA, Categoria.ALIMENTACAO, LocalDate.of(2026, 1, 15));
     }
 
     @Test
