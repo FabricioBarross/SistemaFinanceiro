@@ -104,4 +104,24 @@ class ServicoFinanceiroTest {
         var totais = servico.totalPorCategoria(TipoMovimentacao.DESPESA);
         assertEquals(0, totais.get(Categoria.ALIMENTACAO).compareTo(new BigDecimal("15.50")));
     }
+
+    @Test
+    void removerApagaPorId() {
+        Movimentacao m = receita("100");
+        servico.adicionar(m);
+
+        assertTrue(servico.remover(m.getId()));
+        assertTrue(servico.estaVazio());
+    }
+
+    @Test
+    void removerIdInexistenteRetornaFalse() {
+        assertFalse(servico.remover(java.util.UUID.randomUUID()));
+    }
+
+    @Test
+    void listarPorPeriodoComFimAntesDoInicioLancaExcecao() {
+        assertThrows(IllegalArgumentException.class, () ->
+                servico.listarPorPeriodo(LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 1)));
+    }
 }
