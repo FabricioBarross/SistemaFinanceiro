@@ -27,14 +27,14 @@ public enum Categoria {
         return nomeExibicao;
     }
 
-    public boolean aceita(TipoMovimentacao TipoMov) {
+    public boolean aceita(TipoMovimentacao tipoMov) {
 
-        return tipo == null || tipo == TipoMov;
+        return tipo == null || tipo == tipoMov;
     }
 
-    public static List<Categoria> para(TipoMovimentacao TipoMov) {
+    public static List<Categoria> para(TipoMovimentacao tipoMov) {
         return Arrays.stream(values())
-                .filter(c -> c.aceita(TipoMov))
+                .filter(c -> c.aceita(tipoMov))
                 .toList();
     }
 }
