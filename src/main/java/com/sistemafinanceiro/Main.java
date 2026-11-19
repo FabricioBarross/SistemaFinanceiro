@@ -87,7 +87,7 @@ public class Main {
         System.out.println("7. Sair");
     }
 
-    //-----------ações do menu------------//
+                               //-----------ações do menu------------//
 
     private static void registrar(Scanner scanner, ServicoFinanceiro servico, TipoMovimentacao tipo) {
         String nomeTipo = tipo == TipoMovimentacao.RECEITA ? "Receita" : "Despesa";
@@ -222,7 +222,7 @@ public class Main {
             System.out.println("A movimentação não foi encontrada.");
         }
     }
-                    // ---------- Exibição ----------
+                           // ---------- Exibição ----------
 
     private static void imprimirMovimentacao(Movimentacao m, NumberFormat moeda) {
         System.out.println("-------------------------");
@@ -233,7 +233,7 @@ public class Main {
         System.out.println("Categoria: " + m.getCategoria().getNomeExibicao());
     }
 
-                  // ---------- Leitura de entrada ----------
+                         // ---------- Leitura de entrada ----------
 
     private static String lerTexto(Scanner scanner, String mensagem) {
         while (true) {

@@ -46,7 +46,7 @@ public class Movimentacao {
         if (valor == null || valor.signum() <= 0)
             throw new IllegalArgumentException("Valor deve ser maior que zero");
         if (valor.stripTrailingZeros().scale() > 2)
-            throw new IllegalArgumentException("Valor aceita no máximo duas casa decimais");
+            throw new IllegalArgumentException("Valor aceita no máximo duas casas decimais");
         return valor.setScale(2, RoundingMode.UNNECESSARY);
     }
 

@@ -5,7 +5,6 @@ import com.sistemafinanceiro.model.Movimentacao;
 import com.sistemafinanceiro.model.TipoMovimentacao;
 import com.sistemafinanceiro.repository.RepositorioMovimentacao;
 
-import javax.naming.spi.ObjectFactoryBuilder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.EnumMap;
@@ -59,6 +58,7 @@ public class ServicoFinanceiro {
                 .filter(m -> !m.getData().isBefore(inicio) && !m.getData().isAfter(fim))
                 .toList();
     }
+
     public Map<Categoria, BigDecimal> totalPorCategoria(TipoMovimentacao tipo) {
         return repositorio.listar().stream()
                 .filter(m -> m.getTipo() == tipo)
