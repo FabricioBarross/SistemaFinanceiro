@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -60,5 +61,29 @@ class MovimentacaoTest {
                 new Movimentacao("x", BigDecimal.ONE, TipoMovimentacao.RECEITA, Categoria.OUTROS, DATA));
         assertDoesNotThrow(() ->
                 new Movimentacao("x", BigDecimal.ONE, TipoMovimentacao.DESPESA, Categoria.OUTROS, DATA));
+    }
+
+    @Test
+    void rejeitaValorZero() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new Movimentacao("x", BigDecimal.ZERO, TipoMovimentacao.RECEITA, Categoria.SALARIO, DATA));
+    }
+
+    @Test
+    void rejeitaMaisDeDuasCasasDecimais() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new Movimentacao("x", new BigDecimal("10.999"), TipoMovimentacao.RECEITA, Categoria.SALARIO, DATA));
+    }
+
+    @Test
+    void aceitaZerosAMaisENormalizaParaDuasCasas() {
+        var m = new Movimentacao("x", new BigDecimal("10.500"), TipoMovimentacao.RECEITA, Categoria.SALARIO, DATA);
+        assertEquals("10.50", m.getValor().toPlainString());
+    }
+
+    @Test
+    void descricaoEhAparada() {
+        var m = new Movimentacao("  mercado  ", BigDecimal.ONE, TipoMovimentacao.DESPESA, Categoria.ALIMENTACAO, DATA);
+        assertEquals("mercado", m.getDescricao());
     }
 }
