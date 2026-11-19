@@ -1,30 +1,43 @@
 package com.sistemafinanceiro;
 
-import com.sistemafinanceiro.model.TipoMovimentacao;
-import com.sistemafinanceiro.model.Movimentacao;
-import com.sistemafinanceiro.service.ServicoFinanceiro;
 import com.sistemafinanceiro.model.Categoria;
+import com.sistemafinanceiro.model.Movimentacao;
+import com.sistemafinanceiro.model.TipoMovimentacao;
+import com.sistemafinanceiro.repository.RepositorioException;
+import com.sistemafinanceiro.repository.RepositorioSqlite;
+import com.sistemafinanceiro.service.ServicoFinanceiro;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Scanner;
-import java.text.NumberFormat;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Scanner;
 
 public class Main {
+
     private static final Locale LOCALE_BR = Locale.of("pt", "BR");
     private static final String NOME_PROJETO = "Sistema Financeiro";
     private static final DateTimeFormatter FORMATO_DATA =
             DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-
+    private static final int OPCAO_SAIR = 7;
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+        try (Scanner scanner = new Scanner(System.in)) {
+            executar(scanner);
+        } catch (NoSuchElementException e) {
+            System.out.println("\nEntrada encerrada. Saindo do sistema...");
+        } catch (RepositorioException e) {
+            System.out.println("Não foi possivel acessar o banco de dados: " + e.getMessage());
+        }
+    }
 
+    private static void executar(Scanner scanner) {
         exibirNomeProjeto();
 
         System.out.print("Digite seu nome: ");
@@ -35,22 +48,28 @@ public class Main {
             nome = scanner.nextLine().trim();
         }
 
-        ServicoFinanceiro servico = new ServicoFinanceiro();
+        ServicoFinanceiro servico = new ServicoFinanceiro(new RepositorioSqlite("financeiro.db"));
 
         int opcao = 0;
 
-        while (opcao != 4) {
+        while (opcao != OPCAO_SAIR) {
             exibirMenu();
-            opcao = lerOpcao(scanner, 1, 4);
+            opcao = lerOpcao(scanner, 1, OPCAO_SAIR);
 
-            switch (opcao) {
-                case 1 -> registrar(scanner, servico, TipoMovimentacao.RECEITA);
-                case 2 -> registrar(scanner, servico, TipoMovimentacao.DESPESA);
-                case 3 -> consultarDadosFinanceiros(nome, servico);
-                case 4 -> System.out.println("Saindo do sistema...");
+            try {
+                switch (opcao) {
+                    case 1 -> registrar(scanner, servico, TipoMovimentacao.RECEITA);
+                    case 2 -> registrar(scanner, servico, TipoMovimentacao.DESPESA);
+                    case 3 -> consultarDadosFinanceiros(nome, servico);
+                    case 4 -> consultarPorPeriodo(scanner, servico);
+                    case 5 -> consultarTotaisPorCategoria(servico);
+                    case 6 -> removerMovimentacao(scanner, servico);
+                    case OPCAO_SAIR -> System.out.println("Saindo do sistema...");
+                }
+            } catch (RepositorioException e) {
+                System.out.println("Erro ao acessar o banco de dados: " + e.getMessage());
             }
         }
-        scanner.close();
     }
 
     private static void exibirNomeProjeto() {
@@ -62,8 +81,13 @@ public class Main {
         System.out.println("1. Registrar receita");
         System.out.println("2. Registrar despesa");
         System.out.println("3. Consultar dados financeiros");
-        System.out.println("4. Sair");
+        System.out.println("4. Consultar por período");
+        System.out.println("5. Totais por categoria");
+        System.out.println("6. Remover movimetação");
+        System.out.println("7. Sair");
     }
+
+    //-----------ações do menu------------//
 
     private static void registrar(Scanner scanner, ServicoFinanceiro servico, TipoMovimentacao tipo) {
         String nomeTipo = tipo == TipoMovimentacao.RECEITA ? "Receita" : "Despesa";
@@ -78,6 +102,138 @@ public class Main {
         servico.adicionar(new Movimentacao(descricao, valor, tipo, categoria, data));
         System.out.println(nomeTipo + " cadastrada com sucesso!");
     }
+
+    private static void consultarDadosFinanceiros(String nome, ServicoFinanceiro servico) {
+        if (servico.estaVazio()) {
+            System.out.println("Nenhuma movimentação cadastrada.");
+            return;
+        }
+
+        NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
+        BigDecimal saldo = servico.saldo();
+
+        System.out.println("\n====== DADOS FINANCEIROS ======");
+        System.out.println("Olá, " + nome + "!");
+        System.out.println("Sua renda total é: " + moeda.format(servico.totalReceitas()));
+        System.out.println("Suas despesas totais são: " + moeda.format(servico.totalDespesas()));
+        System.out.println("Seu saldo final é: " + moeda.format(saldo));
+
+        System.out.println("\n====== MOVIMENTAÇÕES ======");
+        for (Movimentacao m : servico.listar()) {
+            imprimirMovimentacao(m, moeda);
+        }
+
+        System.out.println();
+        int sinal = saldo.signum();
+
+        if (sinal == 0) {
+            System.out.println("Cuidado! Você está gastando exatamente o que ganha.");
+        } else if (sinal < 0) {
+            System.out.println("Atenção! Você está gastando mais do que ganha.");
+        } else {
+            System.out.println("Parabéns! Suas despesas não ultrapassaram sua renda.");
+        }
+    }
+
+    private static void consultarPorPeriodo(Scanner scanner, ServicoFinanceiro servico) {
+        System.out.println("\n--- Consulta por período ---");
+        LocalDate inicio = lerData(scanner, "Data inicial (dd/mm/aaaa): ");
+        LocalDate fim = lerData(scanner, "Data final (dd/mm/aaaa): ");
+
+        List<Movimentacao> encontradas;
+        try {
+            encontradas = servico.listarPorPeriodo(inicio, fim);
+        } catch (IllegalArgumentException e) {
+            System.out.println("A data final não pode ser anterior à data inicial.");
+            return;
+        }
+
+        if (encontradas.isEmpty()) {
+            System.out.println("Nenhuma movimentação no período.");
+            return;
+        }
+
+        NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
+        System.out.println("\n====== MOVIMENTAÇÕES DE " + inicio.format(FORMATO_DATA)
+                + " A " + fim.format(FORMATO_DATA) + " ======");
+        for (Movimentacao m : encontradas) {
+            imprimirMovimentacao(m, moeda);
+        }
+        System.out.println("-------------------------");
+        System.out.println("Total de movimentações: " + encontradas.size());
+    }
+
+    private static void consultarTotaisPorCategoria(ServicoFinanceiro servico) {
+        if (servico.estaVazio()) {
+            System.out.println("Nenhuma movimentação cadastrada.");
+            return;
+        }
+
+        NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
+
+        for (TipoMovimentacao tipo : TipoMovimentacao.values()) {
+            String titulo = tipo == TipoMovimentacao.RECEITA ? "RECEITAS" : "DESPESAS";
+            System.out.println("\n====== " + titulo + " POR CATEGORIA ======");
+
+            Map<Categoria, BigDecimal> totais = servico.totalPorCategoria(tipo);
+            if (totais.isEmpty()) {
+                System.out.println("Nenhuma movimentação.");
+                continue;
+            }
+            totais.forEach((categoria, total) ->
+                    System.out.println(categoria.getNomeExibicao() + ": " + moeda.format(total)));
+        }
+    }
+
+    private static void removerMovimentacao(Scanner scanner, ServicoFinanceiro servico) {
+        List<Movimentacao> lista = servico.listar();
+        if (lista.isEmpty()) {
+            System.out.println("Nenhuma movimentação para remover.");
+            return;
+        }
+
+        NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
+
+        System.out.println("\n====== REMOVER MOVIMENTAÇÃO ======");
+        for (int i = 0; i < lista.size(); i++) {
+            Movimentacao m = lista.get(i);
+            System.out.println((i + 1) + ". " + m.getData().format(FORMATO_DATA)
+                    + " | " + m.getTipo()
+                    + " | " + m.getDescricao()
+                    + " | " + moeda.format(m.getValor()));
+        }
+        System.out.println("0. Cancelar");
+
+        int escolha = lerOpcao(scanner, 0, lista.size());
+        if (escolha == 0) {
+            System.out.println("Remoção cancelada.");
+            return;
+        }
+
+        Movimentacao alvo = lista.get(escolha - 1);
+        if (!confirmar(scanner, "Remover \"" + alvo.getDescricao() + "\"? Não dá para desfazer.")) {
+            System.out.println("Remoção cancelada.");
+            return;
+        }
+
+        if (servico.remover(alvo.getId())) {
+            System.out.println("Movimentação removida com sucesso!");
+        } else {
+            System.out.println("A movimentação não foi encontrada.");
+        }
+    }
+                    // ---------- Exibição ----------
+
+    private static void imprimirMovimentacao(Movimentacao m, NumberFormat moeda) {
+        System.out.println("-------------------------");
+        System.out.println("Descrição: " + m.getDescricao());
+        System.out.println("Valor: " + moeda.format(m.getValor()));
+        System.out.println("Data: " + m.getData().format(FORMATO_DATA));
+        System.out.println("Tipo: " + m.getTipo());
+        System.out.println("Categoria: " + m.getCategoria().getNomeExibicao());
+    }
+
+                  // ---------- Leitura de entrada ----------
 
     private static String lerTexto(Scanner scanner, String mensagem) {
         while (true) {
@@ -95,15 +251,11 @@ public class Main {
             System.out.print(mensagem);
             String entrada = scanner.nextLine().trim();
             try {
-                BigDecimal valor = new BigDecimal(entrada.replace(",", "."));
-
-                if (valor.signum() >= 0) {
-                    return valor;
-                }
-                System.out.println("O valor não pode ser negativo.");
-
+                return Movimentacao.normalizarValor(new BigDecimal(entrada.replace(",", ".")));
             } catch (NumberFormatException e) {
                 System.out.println("Digite um valor monetário válido.");
+            } catch (IllegalArgumentException e) {
+                System.out.println(e.getMessage());
             }
         }
     }
@@ -151,40 +303,13 @@ public class Main {
         }
     }
 
-    private static void consultarDadosFinanceiros(String nome, ServicoFinanceiro servico) {
-        if (servico.estaVazio()) {
-            System.out.println("Nenhuma movimentação cadastrada.");
-            return;
-        }
-
-        NumberFormat moeda = NumberFormat.getCurrencyInstance(LOCALE_BR);
-        BigDecimal saldo = servico.saldo();
-
-        System.out.println("\n====== DADOS FINANCEIROS ======");
-        System.out.println("Olá, " + nome + "!");
-        System.out.println("Sua renda total é: " + moeda.format(servico.totalReceitas()));
-        System.out.println("Suas despesas totais são: " + moeda.format(servico.totalDespesas()));
-        System.out.println("Seu saldo final é: " + moeda.format(saldo));
-
-        System.out.println("\n====== MOVIMENTAÇÕES ======");
-        for (Movimentacao m : servico.listar()) {
-            System.out.println("-------------------------");
-            System.out.println("Descrição: " + m.getDescricao());
-            System.out.println("Valor: " + moeda.format(m.getValor()));
-            System.out.println("Data: " + m.getData().format(FORMATO_DATA));
-            System.out.println("Tipo: " + m.getTipo());
-            System.out.println("Categoria: " + m.getCategoria().getNomeExibicao());
-        }
-
-        System.out.println();
-        int sinal = saldo.signum();
-
-        if (sinal == 0) {
-            System.out.println("Cuidado! Você está gastando exatamente o que ganha.");
-        } else if (sinal < 0) {
-            System.out.println("Atenção! Você está gastando mais do que ganha.");
-        } else {
-            System.out.println("Parabéns! Suas despesas não ultrapassaram sua renda.");
+    private static boolean confirmar(Scanner scanner, String mensagem) {
+        while (true) {
+            System.out.print(mensagem + " (s/n): ");
+            String resposta = scanner.nextLine().trim().toLowerCase(LOCALE_BR);
+            if (resposta.equals("s")) return true;
+            if (resposta.equals("n")) return false;
+            System.out.println("Responda com s ou n.");
         }
     }
 }

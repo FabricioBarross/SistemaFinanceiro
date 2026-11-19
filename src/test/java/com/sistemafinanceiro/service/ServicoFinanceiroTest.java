@@ -3,6 +3,7 @@ package com.sistemafinanceiro.service;
 import com.sistemafinanceiro.model.Categoria;
 import com.sistemafinanceiro.model.Movimentacao;
 import com.sistemafinanceiro.model.TipoMovimentacao;
+import com.sistemafinanceiro.repository.RepositorioEmMemoria;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +18,7 @@ class ServicoFinanceiroTest {
 
     @BeforeEach
     void setUp() {
-        servico = new ServicoFinanceiro();
+        servico = new ServicoFinanceiro(new RepositorioEmMemoria());
     }
 
     private Movimentacao receita(String valor) {
@@ -73,5 +74,34 @@ class ServicoFinanceiroTest {
     @Test
     void adicionarNuloLancaExcecao() {
         assertThrows(NullPointerException.class, () -> servico.adicionar(null));
+    }
+
+    @Test
+    void totalDespesasSomaSoDespesas() {
+        servico.adicionar(receita("1000"));
+        servico.adicionar(despesa("200.10"));
+        servico.adicionar(despesa("50.20"));
+        assertEquals(0, servico.totalDespesas().compareTo(new BigDecimal("250.30")));
+    }
+
+    @Test
+    void listarPorPeriodoEhInclusivo() {
+        servico.adicionar(new Movimentacao("a", BigDecimal.TEN, TipoMovimentacao.DESPESA,
+                Categoria.LAZER, LocalDate.of(2026, 1, 1)));
+        servico.adicionar(new Movimentacao("b", BigDecimal.TEN, TipoMovimentacao.DESPESA,
+                Categoria.LAZER, LocalDate.of(2026, 1, 31)));
+        servico.adicionar(new Movimentacao("c", BigDecimal.TEN, TipoMovimentacao.DESPESA,
+                Categoria.LAZER, LocalDate.of(2026, 2, 1)));
+
+        assertEquals(2, servico.listarPorPeriodo(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31)).size());
+    }
+
+    @Test
+    void totalPorCategoriaAgrupaCorretamente() {
+        servico.adicionar(despesa("10.00")); // ALIMENTACAO
+        servico.adicionar(despesa("5.50"));  // ALIMENTACAO
+        var totais = servico.totalPorCategoria(TipoMovimentacao.DESPESA);
+        assertEquals(0, totais.get(Categoria.ALIMENTACAO).compareTo(new BigDecimal("15.50")));
     }
 }
